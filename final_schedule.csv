@@ -1,0 +1,7 @@
+Student,Subject,Teacher,Day,Period,BoothGroup,DayIdx
+Tanaka,Math,Sato,Mon,3,0,0
+Tanaka,Math,Sato,Mon,3,0,0
+Yamada,English,Sato,Mon,3,0,0
+Yamada,English,Sato,Mon,3,1,0
+Tanaka,Math,Sato,Mon,3,1,0
+Tanaka,Math,Sato,Mon,3,1,0
