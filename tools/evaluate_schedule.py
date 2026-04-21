@@ -1,8 +1,9 @@
+# C:\Users\kaito\Desktop\time\tools\evaluate_schedule.py
 import pandas as pd
 import numpy as np
 import os
 
-INPUT_FILE = "large_schedule.csv"
+INPUT_FILE = "schedule_optimized.csv"
 
 
 def evaluate_schedule():

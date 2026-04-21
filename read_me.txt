@@ -5,6 +5,83 @@
 ・matplotlib: グラフ描画。結果の可視化用。
 
 
+操作手順
+1. 環境構築
+Python 3.10以上を推奨。仮想環境を有効にした後、以下のライブラリをインストールする。
+
+Bash
+pip install tqdm pandas matplotlib seaborn openpyxl
+2. 実行手順
+ステップ1: 最適化エンジンの実行
+メインの最適化処理を実行する。実行後、schedule_optimized.csv が生成される。
+
+Bash
+python generate_and_run.py
+Phase 1 (Greedy): 物理的な制約（Hard Constraints）を満たす初期解を高速に生成。
+
+Phase 2 (Hill Climbing): 50万回の試行により、より質の高い（Soft Constraintsを満たす）時間割へ改善。
+
+ステップ2: 結果の可視化と評価
+生成されたスケジュールを分析・可視化する。
+
+Bash
+# スケジュールの質を数値化（時間帯遵守率、講師一致率など）
+python tools/evaluate_schedule.py
+
+# 講師の負荷状況をヒートマップで出力 (schedule_heatmap.png)
+python tools/visualize_schedule.py
+ステップ3: 配布用ファイルの出力
+Excel形式で管理用、個人用の表を出力する。
+
+Bash
+# 講師・生徒・ブース別のマスターExcelを作成
+python tools/export_excel.py
+
+# 生徒別・講師別・日別の個別Excelファイルを一括生成 (reports/フォルダ内)
+python tools/export_individual_files.py
+3. システム構成とアルゴリズム
+本システムは、以下の2段階のアプローチで組み合わせ最適化問題を解決している。
+
+A. 貪欲法（SimpleSolver）による初期解生成
+全ての授業リクエストに対し、以下の**ハード制約（絶対遵守）**を確認しながらスロットを割り当てる。
+
+生徒・講師の予定が空いているか
+
+講師がその科目を指導可能か
+
+生徒にとってNGの講師ではないか
+
+教室（ブース）の定員を超えていないか
+
+B. 山登り法（Hill Climbing）による最適化
+初期解に対し、以下の**ソフト制約（努力目標）**をスコア化し、合計スコアを最大化するよう微調整を繰り返す。
+
+講師の一貫性: 同じ生徒の同じ科目は、なるべく同じ講師が担当する。
+
+時間帯の最適化: 夕方以降（3限〜8限）に優先配置し、午前中の授業を減らす。
+
+適切な授業間隔: 同じ科目の授業は5〜10日の間隔を空ける。
+
+講師の負担軽減: 「1日1コマのみ」や「過度な空きコマ」をペナルティとして排除。
+
+4. プロジェクト構造
+src/: コアロジック
+
+models.py: データ構造（Student, Teacher, Slot等）の定義
+
+solver.py: 初期解生成アルゴリズム
+
+optimizer.py: 山登り法による最適化エンジン
+
+evaluator.py: スコア計算ロジック
+
+validator.py: ルール違反チェック
+
+tools/: 補助ツール（評価、エクスポート、可視化）
+
+data/: 入力データ（レギュラー授業の予定など）
+
+
 ５～８優先＞４＞３＞２＞１
 
 レギュラーで埋まっているところ以外に講習を入れる

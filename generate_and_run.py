@@ -1,3 +1,4 @@
+# C:\Users\kaito\Desktop\time\generate_and_run.py
 import random
 import pandas as pd
 from src.models import Student, Teacher, Slot, Subject

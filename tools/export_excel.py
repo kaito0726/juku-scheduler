@@ -1,7 +1,8 @@
+# C:\Users\kaito\Desktop\time\tools\export_excel.py
 import pandas as pd
 import os
 
-INPUT_FILE = "large_schedule.csv"
+INPUT_FILE = "schedule_optimized.csv"
 OUTPUT_FILE = "visualized_schedule.xlsx"
 
 

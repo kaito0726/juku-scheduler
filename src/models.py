@@ -1,3 +1,4 @@
+# C:\Users\kaito\Desktop\time\src\models.py
 from dataclasses import dataclass, field
 from typing import List, Dict, Set, Optional, Tuple
 from enum import Enum

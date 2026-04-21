@@ -1,5 +1,8 @@
+# C:\Users\kaito\Desktop\time\src\optimizer.py
 import random
 import copy
+import os  # 追加
+import matplotlib.pyplot as plt  # 追加
 from collections import defaultdict
 from typing import List, Dict, Tuple, Set
 from tqdm import tqdm  # プログレスバー用
@@ -191,15 +194,23 @@ class HillClimbingOptimizer:
 
         return avg_student_score + avg_teacher_score
 
-    def run(self, iterations: int = 1000):
+    def run(self, iterations: int = 500000, record_interval: int = 1000):
         """
         山登り法を実行する
         """
         current_score = self.calculate_score()
         print(f"Initial Score: {current_score}")
 
+        # グラフ描画用の履歴データ保持リスト
+        history_steps = []
+        history_scores = []
+
+        # 初期状態の記録
+        history_steps.append(0)
+        history_scores.append(current_score)
+
         # tqdm で進捗を表示
-        for i in tqdm(range(iterations), desc="Optimizing", unit="step"):
+        for i in tqdm(range(1, iterations + 1), desc="Optimizing", unit="step"):
             # 1. ランダムに変更対象を選ぶ
             target_idx = random.randint(0, len(self.current_solution) - 1)
             target_lesson = self.current_solution[target_idx]
@@ -215,51 +226,84 @@ class HillClimbingOptimizer:
 
             # 無駄な移動ならスキップ
             if new_day == original_slot.day_idx and new_period == original_slot.period:
-                continue
-
-            # 3. 制約チェック (Hard Constraints)
-            # 移動先で生徒が空いているか？
-            if (target_lesson.student_id, new_day, new_period) in self.student_schedule:
-                continue  # 既に埋まってる
-
-            # 移動先で講師が空いているか？
-            if (target_lesson.teacher_id, new_day, new_period) in self.teacher_schedule:
-                continue  # 既に埋まってる
-
-            # 移動先の教室に空きがあるか？
-            state_key = (new_day, new_period)
-            if state_key not in self.classroom_states:
-                # まだ誰もいない時間枠ならState新規作成してOK
-                can_enter = True
-                target_group = random.randint(0, 9)  # とりあえずランダムなグループ
+                pass
             else:
-                state = self.classroom_states[state_key]
-                # 空いている、かつ同じ先生がいる(or空)ブースを探す
-                valid_groups = []
-                for g in range(10):  # 全10グループ
-                    if state.can_teacher_enter(g, target_lesson.teacher_id):
-                        if state.get_remaining_seats(g) > 0:
-                            valid_groups.append(g)
+                # 3. 制約チェック (Hard Constraints)
+                if (
+                    target_lesson.student_id,
+                    new_day,
+                    new_period,
+                ) in self.student_schedule:
+                    pass  # 既に埋まってる
+                elif (
+                    target_lesson.teacher_id,
+                    new_day,
+                    new_period,
+                ) in self.teacher_schedule:
+                    pass  # 既に埋まってる
+                else:
+                    state_key = (new_day, new_period)
+                    if state_key not in self.classroom_states:
+                        can_enter = True
+                        target_group = random.randint(0, 9)
+                    else:
+                        state = self.classroom_states[state_key]
+                        valid_groups = []
+                        for g in range(10):
+                            if state.can_teacher_enter(g, target_lesson.teacher_id):
+                                if state.get_remaining_seats(g) > 0:
+                                    valid_groups.append(g)
 
-                if not valid_groups:
-                    continue  # 満席
-                target_group = random.choice(valid_groups)
+                        if valid_groups:
+                            target_group = random.choice(valid_groups)
 
-            # 4. 仮移動 (Try Move)
-            target_lesson.assigned_slot = new_slot
-            target_lesson.assigned_group_id = target_group
+                            # 4. 仮移動 (Try Move)
+                            target_lesson.assigned_slot = new_slot
+                            target_lesson.assigned_group_id = target_group
 
-            new_score = self.calculate_score()
+                            new_score = self.calculate_score()
 
-            # 5. 判定 (Hill Climbing Logic)
-            if new_score > current_score:
-                # 採用！ (Keep changes)
-                current_score = new_score
-                self._rebuild_cache()
-            else:
-                # 却下 (Revert)
-                target_lesson.assigned_slot = original_slot
-                target_lesson.assigned_group_id = original_group
+                            # 5. 判定 (Hill Climbing Logic)
+                            if new_score > current_score:
+                                # 採用！ (Keep changes)
+                                current_score = new_score
+                                self._rebuild_cache()
+                            else:
+                                # 却下 (Revert)
+                                target_lesson.assigned_slot = original_slot
+                                target_lesson.assigned_group_id = original_group
+
+            # 6. 指定ステップごとにスコアを記録
+            if i % record_interval == 0:
+                history_steps.append(i)
+                history_scores.append(current_score)
 
         print(f"Final Score: {current_score}")
+
+        # 最後にグラフを描画・保存
+        self._plot_convergence(history_steps, history_scores)
+
         return self.current_solution
+
+    def _plot_convergence(self, steps: List[int], scores: List[float]):
+        """
+        記録したスコア履歴から収束グラフ（折れ線グラフ）を生成して保存する
+        """
+        plt.figure(figsize=(10, 6))
+
+        # 折れ線グラフの描画
+        plt.plot(steps, scores, linestyle="-", color="b", linewidth=1.5)
+
+        # グラフの装飾
+        plt.title("Optimization Convergence (Hill Climbing)")
+        plt.xlabel("Iteration Step")
+        plt.ylabel("Total Score")
+        plt.grid(True, linestyle="--", alpha=0.7)
+
+        # 画像として保存
+        output_path = "convergence_graph.png"
+        plt.savefig(output_path, dpi=300, bbox_inches="tight")
+        print(f"\n収束グラフを保存した: {os.path.abspath(output_path)}")
+
+        # メモリ解放
+        plt.close()

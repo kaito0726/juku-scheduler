@@ -1,3 +1,4 @@
+# C:\Users\kaito\Desktop\time\src\validator.py
 from typing import List, Tuple
 from src.models import Student, Teacher, Slot, Subject, ClassroomState
 
