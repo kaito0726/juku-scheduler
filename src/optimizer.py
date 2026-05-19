@@ -2,6 +2,7 @@
 import random
 import copy
 import os  # 追加
+import math
 import matplotlib.pyplot as plt  # 追加
 from collections import defaultdict
 from typing import List, Dict, Tuple, Set
@@ -307,3 +308,130 @@ class HillClimbingOptimizer:
 
         # メモリ解放
         plt.close()
+
+
+class SimulatedAnnealingOptimizer(HillClimbingOptimizer):
+    """
+    山登り法のロジックを継承し、判定部分だけを焼きなまし法に変更したクラス
+    """
+
+    def run(
+        self,
+        iterations: int = 500000,
+        record_interval: int = 1000,
+        start_temp: float = 2000.0,
+        cooling_rate: float = 0.99995,
+    ):
+        current_score = self.calculate_score()
+        print(f"Initial Score (SA): {current_score}")
+
+        history_steps = []
+        history_scores = []
+        history_steps.append(0)
+        history_scores.append(current_score)
+
+        # 現在の温度
+        temp = start_temp
+
+        for i in tqdm(range(1, iterations + 1), desc="Optimizing (SA)", unit="step"):
+            target_idx = random.randint(0, len(self.current_solution) - 1)
+            target_lesson = self.current_solution[target_idx]
+
+            original_slot = target_lesson.assigned_slot
+            original_group = target_lesson.assigned_group_id
+
+            new_day = random.randint(0, 27)
+            new_period = random.randint(1, 8)
+            new_slot = Slot(new_day, new_period)
+
+            if new_day == original_slot.day_idx and new_period == original_slot.period:
+                pass
+            else:
+                # 制約チェック (Hard Constraints) は山登り法と全く同じ
+                if (
+                    target_lesson.student_id,
+                    new_day,
+                    new_period,
+                ) in self.student_schedule:
+                    pass
+                elif (
+                    target_lesson.teacher_id,
+                    new_day,
+                    new_period,
+                ) in self.teacher_schedule:
+                    pass
+                else:
+                    state_key = (new_day, new_period)
+                    if state_key not in self.classroom_states:
+                        target_group = random.randint(0, 9)
+                        valid = True
+                    else:
+                        state = self.classroom_states[state_key]
+                        valid_groups = [
+                            g
+                            for g in range(10)
+                            if state.can_teacher_enter(g, target_lesson.teacher_id)
+                            and state.get_remaining_seats(g) > 0
+                        ]
+                        if valid_groups:
+                            target_group = random.choice(valid_groups)
+                            valid = True
+                        else:
+                            valid = False
+
+                    if valid:
+                        target_lesson.assigned_slot = new_slot
+                        target_lesson.assigned_group_id = target_group
+
+                        new_score = self.calculate_score()
+
+                        # ==========================================
+                        # 判定 (Simulated Annealing Logic)
+                        # ==========================================
+                        score_diff = new_score - current_score
+
+                        if score_diff > 0:
+                            # 1. スコアが良くなるなら無条件で採用
+                            accept = True
+                        else:
+                            # 2. スコアが悪くなる場合、確率的に採用する
+                            # 確率 P = exp(ΔS / T)
+                            if temp > 0.01:
+                                probability = math.exp(score_diff / temp)
+                            else:
+                                probability = 0.0
+
+                            if random.random() < probability:
+                                accept = True
+                            else:
+                                accept = False
+
+                        if accept:
+                            current_score = new_score
+                            self._rebuild_cache()
+                        else:
+                            target_lesson.assigned_slot = original_slot
+                            target_lesson.assigned_group_id = original_group
+
+            # 温度を下げる（冷却スケジュール）
+            temp *= cooling_rate
+
+            if i % record_interval == 0:
+                history_steps.append(i)
+                history_scores.append(current_score)
+
+        print(f"Final Score (SA): {current_score}")
+
+        # グラフ保存時のファイル名を変更して上書きを防ぐ
+        output_path = "convergence_graph_SA.png"
+        plt.figure(figsize=(10, 6))
+        plt.plot(history_steps, history_scores, linestyle="-", color="r", linewidth=1.5)
+        plt.title("Optimization Convergence (Simulated Annealing)")
+        plt.xlabel("Iteration Step")
+        plt.ylabel("Total Score")
+        plt.grid(True, linestyle="--", alpha=0.7)
+        plt.savefig(output_path, dpi=300, bbox_inches="tight")
+        plt.close()
+        print(f"\n焼きなまし法の収束グラフを保存した: {os.path.abspath(output_path)}")
+
+        return self.current_solution
