@@ -8,6 +8,11 @@
 /.next/
 /out/
 
+#logs
+dayly_log\0209.txt
+dayly_log\0209.txt
+read_me.txt
+
 # misc
 .DS_Store
 
